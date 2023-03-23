@@ -163,7 +163,8 @@
     function processRecurse(component, data) {
         if(component.type == "liquid" ) {
             component.type = "text"
-            component.content = component.content in data ? data[component.content] : component.content;
+            label = component.content.replace(/[\{\}]/, '')
+            component.content = label in data ? data[label] : component.content;
         }
 
         if(component.components) {
