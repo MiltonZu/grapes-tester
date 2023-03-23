@@ -1,32 +1,99 @@
 <template>
-    <div class="grapes-data" v-if="html">
-        
-        <div class="output-data">
-            <input type="radio" value="html" v-model="selected" />
-            HTML: {{ htmlSize }}</div>
-        <div class="output-data">
-            <input type="radio" value="css" v-model="selected" />
-            CSS: {{ cssSize }}</div>
-        <div class="output-data">
-            <input type="radio" value="raw" v-model="selected" />
-            Raw Project JSON: {{ projSize }}</div>
-        <div class="output-data">
-            <input type="radio" value="trim" v-model="selected" />
-            Trimmed Project JSON: {{ trimSize }}</div>
-        <div class="output-data">
-            <input type="radio" value="splittpl" v-model="selected" />
-            Split JSON Template: {{ tplSize }}</div>
-        <div class="output-data">
-            <input type="radio" value="splitlqd" v-model="selected" />
-            Split JSON Liquid: {{ lqdSize }}</div>
+    <div class="grapes-columns">
+        <div class="grapes-info">
+            <h1>Size in bytes</h1>
+            <details>Select any type to see the output</details>
+            <div class="grapes-data" v-if="html">
+                <div class="output-data">
+                    <input type="radio" value="html" v-model="selected" />
+                    HTML: {{ htmlSize }}</div>
+                <div class="output-data">
+                    <input type="radio" value="css" v-model="selected" />
+                    CSS: {{ cssSize }}</div>
+                <div class="output-data">
+                    <input type="radio" value="raw" v-model="selected" />
+                    Raw Project JSON: {{ projSize }}</div>
+                <div class="output-data">
+                    <input type="radio" value="trim" v-model="selected" />
+                    Trimmed Project JSON: {{ trimSize }}</div>
+                <div class="output-data">
+                    <input type="radio" value="splittpl" v-model="selected" />
+                    Split JSON Template: {{ tplSize }}</div>
+                <div class="output-data">
+                    <input type="radio" value="splitlqd" v-model="selected" />
+                    Split JSON Liquid: {{ lqdSize }}</div>
+            </div>
+            <div class="grapes-render">
+                <h2>Sample data for Render</h2>
+                <div class="grapes-sample-data">
+                    <button @click="type = 'char'">Random Characters</button>
+                    <button @click="type = 'para'">Random Ipsum Paragraph</button>
+                    <JsonViewer :value="fakeData" boxed sort></JsonViewer>
+                    <button @click="testSpeed">Test Render Types</button>
 
+                    <div class="results" v-if="results && results.length">
+                        <div v-for="result in results">
+                            {{ result.name }} : {{ result.duration }}ms
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-if="view" class="grapes-output">
+            <h1>Output</h1>
+            <div class="grapes-output-box">
+                <div class="grapes-output-json" v-if="isJson">
+                    <JsonViewer :value="view" :expand-depth="1" copyable boxed sort></JsonViewer>
+                </div>
+                <div class="grapes-sample-data" v-else>
+                    <code>{{ view }}</code>
+                </div>
+            </div>                
+        </div>
     </div>
 </template>
 
+<style scoped>
+    .grapes-columns {
+        display:flex;
+        flex-direction: row;
+        width:100%;
+    }
+
+    .grapes-info {
+        max-width:50%;
+    }
+
+    .grapes-data, .grapes-output {
+        flex-shrink: 1;
+    }
+
+    .grapes-output-box, .grapes-data {
+        padding:15px;
+    }
+
+    .grapes-sample-data {
+        padding:20px;
+    }
+
+    .grapes-sample-data button {
+        padding:5px;
+        margin:5px 0;
+    }
+
+    .grapes-sample-data button:first-child {
+        margin-right:5px;
+    }
+</style>
+
 <script>
     import grapesjs from 'grapesjs'
+    import {faker} from '@faker-js/faker'
+    import Mustache from 'mustache'
+    import moment from 'moment'
     
     const grapes = grapesjs.init({headless: true})
+    const renderer = grapesjs.init({headless: true})
     const fields = ['stylable','unstylable','stylable-required','_undoexc']
     function trimData(obj) { 
         if(obj.pages) {
@@ -52,15 +119,13 @@
         splitLiquid = splitLiquid || {count: 0}
 
         if(input.pages) {
-            console.log('Before split', input)
             input.pages.forEach(page => splitTemplate(page, splitLiquid))
             //Split data
             delete splitLiquid.count;
             const output = {
-                data: input,
+                tpl: input,
                 liquid: splitLiquid
             }
-            console.log('Output', output)
             return output
         }
         else if(input.frames) {
@@ -82,11 +147,70 @@
         }
     }
 
+    function timeExecution(name, input, func) {
+        const start = moment()
+        func(input);
+        const end = moment()
+        const diff = end.diff(start, 'miliseconds', true)
+        return {name, duration: diff}
+    }
+
+    function mustacheRender({template, data}) {
+        Mustache.render(template, data);
+    }
+
+    function processRecurse(component, data) {
+        if(component.type == "liquid" ) {
+            component.type = "text"
+            component.content = component.content in data ? data[component.content] : component.content;
+        }
+
+        if(component.components) {
+            component.components.forEach(comp => processRecurse(comp, data))
+        }
+    }
+
+    function processData({template, data}) {
+        if(template.pages) {
+            template.pages.forEach(page => page.frames.forEach(frame => processRecurse(frame, data)))
+        }
+    }
+
+    function grapesRender(input) {
+        processData(input)
+        renderer.loadProjectData(input.template)
+        renderer.getHtml();
+    }
+
+    function cloneObject(input) {
+        return input !== null ? JSON.parse(JSON.stringify(input)) : null;
+    }
+
+    function regexRender(input) {
+        const keys = Object.keys(input.data)
+        keys.forEach(key => input.template.replace(key, input.data[key]) )
+    }
+
     export default {
         name: 'Grapes',
+        
         data() {
             return {
-                selvalue: null
+                selvalue: null,
+                isJson: false,
+                type: 'char',
+                results: []
+            }
+        },
+        methods: {
+            testSpeed() {
+                const htmlParams = {template: ""+this.html, data: this.fakeData}
+
+                this.results = [
+                    timeExecution('Regex', htmlParams, regexRender),
+                    timeExecution('Mustache', htmlParams, mustacheRender),
+                    timeExecution('Grapes', {template: cloneObject(this.splitData.tpl), data: this.fakeData}, grapesRender),
+                ]
             }
         },
         computed: {
@@ -96,17 +220,18 @@
                 },
                 set(value) {
                     this.selvalue = value
-                    this.$emit('update:modelValue', this.view)
                 }
             },
             view() {
+                if(!this.html) return null;
                 switch(this.selected) {
-                    case 'html': return this.html;
-                    case 'css': return this.css;
-                    case 'raw': return this.projData;
-                    case 'trim': return this.trimmedData;
-                    case 'splittpl': return this.splitData && this.splitData.data ? this.splitData.data : {}
-                    case 'splitlqd': return this.splitData && this.splitData.liquid ? this.splitData.liquid : {}
+                    case 'html': this.isJson = false; return this.html;
+                    case 'css': this.isJson = false; return this.css;
+                    case 'raw': this.isJson = true; return this.projData;
+                    case 'trim': this.isJson = true; return this.trimmedData;
+                    case 'splittpl': this.isJson = true; return this.splitData && this.splitData.tpl ? this.splitData.tpl : {}
+                    case 'splitlqd': this.isJson = true; return this.splitData && this.splitData.liquid ? this.splitData.liquid : {}
+                    default: return null;
                 }
             },
             projData() {
@@ -117,9 +242,7 @@
             projSize() { return this.projData ? JSON.stringify(this.projData).length : 0 },
             trimmedData(){
                 const cloned = this.projData ? JSON.parse(JSON.stringify(this.projData)) : {}
-                console.log('Before: ', cloned)
                 trimData(cloned)
-                console.log('After: ', cloned)
                 return cloned || {}
             },
             trimSize() { return this.trimmedData ? JSON.stringify(this.trimmedData).length : 0 },
@@ -129,16 +252,21 @@
             splitData() {
                 return splitTemplate(this.clonedData)
             },
-            tplSize() { return this.splitData && this.splitData.data ? JSON.stringify(this.splitData.data).length : 0},
-            lqdSize() { return this.splitData && this.splitData.data ? JSON.stringify(this.splitData.liquid).length : 0},
+            fakeData() {
+                const faked = {};
+                const randomSize = Math.random()*1000%100+10
+                if (this.splitData) 
+                    Object.keys(this.splitData.liquid).forEach(key=>faked[key] = this.type == 'char' ? faker.datatype.string(randomSize) : faker.lorem.paragraph(5) )
+                return faked
+            },
+            tplSize() { return this.splitData && this.splitData.tpl ? JSON.stringify(this.splitData.tpl).length : 0},
+            lqdSize() { return this.splitData && this.splitData.liquid ? JSON.stringify(this.splitData.liquid).length : 0},
             htmlSize(){ return this.html.length },
             cssSize() { return this.css.length },
         },
         props: {
             html: 'string',
             css: 'string',
-            modelValue: [String, Object]
-        },
-        emits: ['update:modelValue']
+        }
     }
 </script>

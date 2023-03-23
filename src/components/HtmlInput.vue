@@ -8,29 +8,16 @@
             <textarea v-model.lazy="cssSource"></textarea>
         </div>
         <div class="selection-box">
-            <h1>Size in bytes</h1>
-            <Grapes :html="htmlSource" :css="cssSource" v-model="output" />
-        </div>
-        <div class="output-box" v-if="output">
-            <h1>Output</h1>
-            <div v-if="isString">
-                {{ output }}
-            </div>
-            <div v-if="isJson">
-                <JsonViewer :value="output" :expand-depth="1" copyable boxed sort></JsonViewer>
-            </div>
-            
+            <Grapes :html="htmlSource" :css="cssSource" />
         </div>
     </div>
 </template>
 
 <script>
     import Grapes from './Grapes.vue'
-    import JsonViewer from 'vue-json-viewer'
     export default {
         components: {
             Grapes,
-            JsonViewer
         },
         data() {
             return {
@@ -41,7 +28,7 @@
         },
         computed: {
             isJson() { return this.output && typeof(this.output) == "object" },
-            isString() { return this.output && typeof(this.output) == "string"  } 
+            isString() { return this.output && typeof(this.output) == "string" && this.output.length  } 
         }
 
     }
