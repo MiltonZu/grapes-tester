@@ -2,7 +2,7 @@
     <div class="grapes-columns">
         <div class="grapes-info">
             <h1>Size in bytes</h1>
-            <details>Select any type to see the output</details>
+            <subheader>Select any type to see the output</subheader>
             <div class="grapes-data" v-if="html">
                 <div class="output-data">
                     <input type="radio" value="html" v-model="selected" />
@@ -23,7 +23,7 @@
                     <input type="radio" value="splitlqd" v-model="selected" />
                     Split JSON Liquid: {{ lqdSize }}</div>
             </div>
-            <div class="grapes-render">
+            <div class="grapes-render" v-if="html || css">
                 <h2>Sample data for Render</h2>
                 <div class="grapes-sample-data">
                     <button @click="type = 'char'">Random Characters</button>
@@ -62,6 +62,7 @@
 
     .grapes-info {
         max-width:50%;
+        min-width:200px;
     }
 
     .grapes-data, .grapes-output {

@@ -44,7 +44,7 @@
         flex-wrap: nowrap;
         align-content:stretch
     }
-    .selection-box { flex-shrink:1; flex-basis:max-content; padding: 0 10px; }
+    .selection-box { flex-shrink:2; min-width:500px; flex-basis:max-content; padding: 0 10px; }
     .input-box { flex-shrink:1; flex-basis:max-content; }
     .output-box { flex-grow:2; flex-basis:max-content; }
 
